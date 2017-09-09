@@ -3,7 +3,7 @@
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from threading import Lock
 
-nr = 3;
+nr = 1;
 
 answers = []
 
@@ -13,7 +13,7 @@ lock = Lock()
 # HTTPRequestHandler class
 class testHTTPServer_RequestHandler(BaseHTTPRequestHandler):
 
-    def add_answer(self, ip, nr, reply):
+    def add_answer(self, user, ip, nr, reply):
         global answers
         print(ip, nr, reply)
         lock.acquire()
@@ -21,7 +21,8 @@ class testHTTPServer_RequestHandler(BaseHTTPRequestHandler):
             while len(answers) < nr:
                 answers.append( {} )
             
-            answers[nr-1][ip.replace('192.168.1.','')] = reply
+            answers[nr-1][user.replace('name=','')] = reply
+            #answers[nr-1][ip.replace('192.168.1.','')] = reply
         finally:
             lock.release()
         
@@ -38,36 +39,46 @@ class testHTTPServer_RequestHandler(BaseHTTPRequestHandler):
         message += "</center></body></html>"
         return message
 
-    def user_page(self, nr, ans):
+    def user_page(self, nr, ans, user):
         message = "<h1>Question " + str(nr) + "</h1>"
         
         for letter in sorted({'A', 'B', 'C'}):
             stijl = ""
             if '/'+letter in ans:
                 stijl = " style=\"background-color:#F6F6FA;\""  
-            message += "<p"+stijl+"><a href=\"/" + letter + "\"><font size=\"7\">" + letter + "</a></p>"
+            message += "<p"+stijl+"><a href=\"/" + letter + "?"+user+"\"><font size=\"7\">" + letter + "</a></p>"
 
-        if self.path in {'/A','/B','/C'}:
-            message += "<p><a href=\"/\">Next></a></p>"
+        if ans in {'/A','/B','/C'}:
+            message += "<p><a href=\"/?"+user+"\">Next></a></p>"
+
+        #message += "<p>"+user+" "+ans+"</p>"
+
+        return message
+
+    def setup_page(self):
+        message = "<h1>What is your name?</h1>"
+        message += "<form action=\"/\"><p>Name: <input type=\"text\" name=\"name\"/></p><p><input type=\"submit\"></p></form>"
 
         return message
 
     def admin_page(self, ans):
         message = "<h1>Question " + str(nr) + "</h1>"
         
-        message += "<p><a href=\"/admin/prev\">&lt;Prev</a> | <a href=\"/admin/next\">Next&gt;</a></p>"
+        message += "<p><a href=\"/admin/prev\">&lt;Prev</a> | <a href=\"/admin\">Refresh</a> | <a href=\"/admin/next\">Next&gt;</a></p>"
 
         return message
 
     def stat_page(self, nr):
         global answers
-        message = "<h1>Responses to question " + str(nr-1) + "</h1>" + "<p>"
+        message = "<h1>Responses " + str(nr-1) + "</h1>" + "<p>"
 
         lock.acquire()
         try:
             if nr > 1:
                 if len(answers) >= (nr-1):
-                    message += "<p>" + str(answers[nr-2]) + "</p>"
+                    mydict = answers[nr-2]
+                    for ans in mydict:
+                        message += "<li><b>" + str(ans) + "</b>: " + str(mydict[ans]) + "</p>"
         finally:
             lock.release()
 
@@ -82,7 +93,7 @@ class testHTTPServer_RequestHandler(BaseHTTPRequestHandler):
         global answers
         # Send response status code
         self.send_response(200)
-        print(self.path)
+        #print(self.path)
  
         # Send headers
         self.send_header('Content-type','text/html')
@@ -99,9 +110,19 @@ class testHTTPServer_RequestHandler(BaseHTTPRequestHandler):
         elif '/stat' in self.path:
             message = self.page(self.stat_page(nr),1)
         else:
-            if self.path in {'/A','/B','/C'}:
-                self.add_answer(self.client_address[0],nr,self.path.replace('/',''))
-            message = self.page(self.user_page(nr, self.path),1)
+            url = self.path
+            user = ""
+            if '?' in url:
+                li = url.split('?')
+                url = li[0]
+                user = li[1]
+                #print("USER:", user)
+                if url in {'/A','/B','/C'}:
+                    self.add_answer(user, self.client_address[0],nr,url.replace('/',''))
+                
+                message = self.page(self.user_page(nr, url, user),1)
+            else:
+                message = self.page(self.setup_page(),0)
 
         #print(self.client_address)
         # Write content as utf-8 data
