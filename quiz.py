@@ -13,15 +13,33 @@ lock = Lock()
 # HTTPRequestHandler class
 class testHTTPServer_RequestHandler(BaseHTTPRequestHandler):
 
+    def export_csv(self):
+        file = open("quiz.csv","w")
+        
+        lock.acquire()
+        try:
+            cnt = 0
+            for mydict in answers:
+                cnt = cnt+1
+                file.write( str(cnt) + "," )
+                for ans in sorted(mydict):
+                    file.write( str(ans[0]) + "," + str(ans[1]) + "," + str(mydict[ans]))
+                file.write(  "\n" )
+        finally:
+            lock.release()
+
+        file.close() 
+
+
     def add_answer(self, user, ip, nr, reply):
         global answers
-        print(ip, nr, reply)
+        print(user, ip, nr, reply)
         lock.acquire()
         try:
             while len(answers) < nr:
                 answers.append( {} )
             
-            answers[nr-1][user.replace('name=','')] = reply
+            answers[nr-1][(user.replace('name=',''),ip)] = reply
             #answers[nr-1][ip.replace('192.168.1.','')] = reply
         finally:
             lock.release()
@@ -78,7 +96,7 @@ class testHTTPServer_RequestHandler(BaseHTTPRequestHandler):
                 if len(answers) >= (nr-1):
                     mydict = answers[nr-2]
                     for ans in mydict:
-                        message += "<li><b>" + str(ans) + "</b>: " + str(mydict[ans]) + "</p>"
+                        message += "<li><b>" + str(ans[0]) + "</b>: " + str(mydict[ans]) + "</p>"
         finally:
             lock.release()
 
@@ -104,6 +122,7 @@ class testHTTPServer_RequestHandler(BaseHTTPRequestHandler):
         if '/admin' in self.path:
             if '/admin/next' in self.path:
                 nr+=1
+                self.export_csv()
             elif '/admin/prev' in self.path:
                 nr-=1
             message = self.page(self.admin_page(self.path),0)
