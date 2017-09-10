@@ -14,6 +14,7 @@ lock = Lock()
 class testHTTPServer_RequestHandler(BaseHTTPRequestHandler):
 
     def export_csv(self):
+        print('[CSV] store')
         file = open("quiz.csv","w")
         
         lock.acquire()
@@ -23,7 +24,7 @@ class testHTTPServer_RequestHandler(BaseHTTPRequestHandler):
                 cnt = cnt+1
                 file.write( str(cnt) + "," )
                 for ans in sorted(mydict):
-                    file.write( str(ans[0]) + "," + str(ans[1]) + "," + str(mydict[ans]))
+                    file.write( str(ans[0]) + "," + str(ans[1]) + "," + str(mydict[ans]) + ",")
                 file.write(  "\n" )
         finally:
             lock.release()
@@ -33,7 +34,7 @@ class testHTTPServer_RequestHandler(BaseHTTPRequestHandler):
 
     def add_answer(self, user, ip, nr, reply):
         global answers
-        print(user, ip, nr, reply)
+        print("[ADD]",user, ip, nr, reply)
         lock.acquire()
         try:
             while len(answers) < nr:
@@ -58,6 +59,7 @@ class testHTTPServer_RequestHandler(BaseHTTPRequestHandler):
         return message
 
     def user_page(self, nr, ans, user):
+        print("[USR] page",nr,ans,user)
         message = "<h1>Question " + str(nr) + "</h1>"
         
         for letter in sorted({'A', 'B', 'C'}):
@@ -73,13 +75,14 @@ class testHTTPServer_RequestHandler(BaseHTTPRequestHandler):
 
         return message
 
-    def setup_page(self):
+    def setup_page(self,ip):
+        print("[SET]",ip)
         message = "<h1>What is your name?</h1>"
         message += "<form action=\"/\"><p>Name: <input type=\"text\" name=\"name\"/></p><p><input type=\"submit\"></p></form>"
-
         return message
 
     def admin_page(self, ans):
+        print("[ADM]",ans)
         message = "<h1>Question " + str(nr) + "</h1>"
         
         message += "<p><a href=\"/admin/prev\">&lt;Prev</a> | <a href=\"/admin\">Refresh</a> | <a href=\"/admin/next\">Next&gt;</a></p>"
@@ -88,6 +91,7 @@ class testHTTPServer_RequestHandler(BaseHTTPRequestHandler):
 
     def stat_page(self, nr):
         global answers
+        print("[STA]",nr)
         message = "<h1>Responses " + str(nr-1) + "</h1>" + "<p>"
 
         lock.acquire()
@@ -109,13 +113,6 @@ class testHTTPServer_RequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         global nr
         global answers
-        # Send response status code
-        self.send_response(200)
-        #print(self.path)
- 
-        # Send headers
-        self.send_header('Content-type','text/html')
-        self.end_headers()
 
 
         message = ''
@@ -126,6 +123,14 @@ class testHTTPServer_RequestHandler(BaseHTTPRequestHandler):
             elif '/admin/prev' in self.path:
                 nr-=1
             message = self.page(self.admin_page(self.path),0)
+        elif '/favicon.ico' in self.path:
+            print("[ICO] not exist")
+            self.send_response(404)
+            self.send_header('Content-type','image/x-icon')
+            self.end_headers()
+            # Write content as utf-8 data
+            #self.wfile.write(bytes((""), "utf8"))
+            return
         elif '/stat' in self.path:
             message = self.page(self.stat_page(nr),1)
         else:
@@ -141,12 +146,19 @@ class testHTTPServer_RequestHandler(BaseHTTPRequestHandler):
                 
                 message = self.page(self.user_page(nr, url, user),1)
             else:
-                message = self.page(self.setup_page(),0)
+                message = self.page(self.setup_page(self.client_address[0]),0)
 
-        #print(self.client_address)
+        # Send response status code
+        self.send_response(200)
+        #print(self.path)
+ 
+        # Send headers
+        self.send_header('Content-type','text/html')
+        self.end_headers()
         # Write content as utf-8 data
         self.wfile.write(bytes((message), "utf8"))
         # nr+=1
+        print("[GET] Ready",self.path,self.client_address)
         return
  
 def run():
