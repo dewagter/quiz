@@ -8,6 +8,14 @@ nr = 1;
 answers = []
 
 
+SERVER_IP = "192.168.1.79"
+SERVER_PORT = 80
+
+RESULTS_FILE = "quiz.csv"
+
+TITLE_COLOR = "#D6D6EA"
+PAGE_COLOR = "#E6E6FA"
+
 lock = Lock()
 
 # HTTPRequestHandler class
@@ -15,7 +23,7 @@ class testHTTPServer_RequestHandler(BaseHTTPRequestHandler):
 
     def export_csv(self):
         print('[CSV] store')
-        file = open("quiz.csv","w")
+        file = open(RESULTS_FILE,"w")
         
         lock.acquire()
         try:
@@ -41,7 +49,6 @@ class testHTTPServer_RequestHandler(BaseHTTPRequestHandler):
                 answers.append( {} )
             
             answers[nr-1][(user.replace('name=',''),ip)] = reply
-            #answers[nr-1][ip.replace('192.168.1.','')] = reply
         finally:
             lock.release()
         
@@ -53,8 +60,8 @@ class testHTTPServer_RequestHandler(BaseHTTPRequestHandler):
         message += "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
         if refresh:
             message += "<meta http-equiv=\"refresh\" content=\"1\">"
-        message += "<style>\nh1 {\n   background-color: #D6D6EA;\n}\n</style>\n"
-        message += "</head><body bgcolor=\"#E6E6FA\"><center>" + content 
+        message += "<style>\nh1 {\n   background-color: " + TITLE_COLOR + ";\n}\n</style>\n"
+        message += "</head><body bgcolor=\"" + PAGE_COLOR + "\"><center>" + content 
         message += "</center></body></html>"
         return message
 
@@ -164,7 +171,7 @@ class testHTTPServer_RequestHandler(BaseHTTPRequestHandler):
 def run():
   print('starting server...')
  
-  server_address = ('192.168.1.74', 80)
+  server_address = (SERVER_IP, SERVER_PORT)
   httpd = HTTPServer(server_address, testHTTPServer_RequestHandler)
   print('running server...')
   httpd.serve_forever()
